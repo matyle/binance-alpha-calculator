@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import webbrowser
-from math import pow
+from alpha_calculator import calculate_profit, calculate_auto_fields
 
 # macOS 风格配色
 BG_COLOR = "#ececec"  # 浅灰底
@@ -15,16 +15,6 @@ BUTTON_ACTIVE_BG = "#e1e1e1"
 SEPARATOR_COLOR = "#d1d1d1"
 LINK_X_COLOR = "#007aff"
 LINK_GITHUB_COLOR = "#24292f"
-
-# 利润计算函数
-def calculate_profit(Ntl, Pb, T_alpha, Ipdw, Rdur, D_alpha=15):
-    Vactual = pow(2, Ntl) / 2
-    Nbal = Pb
-    balance = pow(10, Nbal + 1)
-    first = 2 * max(0, ((Ntl + Pb) * 15 - T_alpha) / D_alpha) * Ipdw
-    second = 30 * (Vactual * Rdur)
-    third = pow(10, Nbal+1) * (0.04 / 12)
-    return first - second - third, Vactual, Nbal, balance
 
 class AlphaProfitCalculatorTk(tk.Tk):
     def __init__(self):
@@ -121,13 +111,14 @@ class AlphaProfitCalculatorTk(tk.Tk):
         try:
             Ntl = float(self.entries["Ntl"].get())
             Pb = float(self.entries["Pb"].get())
-            T_alpha = float(self.entries["T_alpha"].get()) if self.entries["T_alpha"].get() else 200
-            Vactual = pow(2, Ntl) / 2
-            Nbal = Pb
-            balance = pow(10, Nbal + 1)
+            Vactual, Nbal, balance = calculate_auto_fields(Ntl, Pb)
             self.vactual_var.set(f"Vactual（真实交易量）：{Vactual:.2f}")
             self.nbal_var.set(f"Nbal（余额档位）：{Nbal:.0f}")
             self.balance_var.set(f"余额（USD）：{balance:.0f}")
+        except ValueError as e:
+            self.vactual_var.set("Vactual（真实交易量）：错误")
+            self.nbal_var.set("Nbal（余额档位）：错误")
+            self.balance_var.set("余额（USD）：错误")
         except Exception:
             self.vactual_var.set("Vactual（真实交易量）：-")
             self.nbal_var.set("Nbal（余额档位）：-")
@@ -145,6 +136,8 @@ class AlphaProfitCalculatorTk(tk.Tk):
             self.vactual_var.set(f"Vactual（真实交易量）：{Vactual:.2f}")
             self.nbal_var.set(f"Nbal（余额档位）：{Nbal:.0f}")
             self.balance_var.set(f"余额（USD）：{balance:.0f}")
+        except ValueError as e:
+            messagebox.showwarning("输入错误", str(e))
         except Exception as e:
             messagebox.showwarning("输入错误", f"请检查输入：{e}")
 

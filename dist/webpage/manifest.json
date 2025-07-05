@@ -1,0 +1,11 @@
+{
+  "name": "alpha-calculator",
+  "version": "1.0.0",
+  "description": "Alpha Profit Calculator Core Module",
+  "main": "alpha_calculator.py",
+  "functions": [
+    "calculate_profit",
+    "calculate_auto_fields",
+    "validate_inputs"
+  ]
+}

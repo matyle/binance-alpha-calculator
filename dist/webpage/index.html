@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha 月度利润计算器</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .title {
+            color: #2c3e50;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            color: #3498db;
+            font-size: 12px;
+            font-style: italic;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-label {
+            display: block;
+            color: #34495e;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .auto-fields {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .auto-field {
+            background: #e8f4f8;
+            padding: 12px 16px;
+            border-radius: 10px;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .result-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .result-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .calculate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .calculate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .footer {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .footer-link {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .message.error {
+            background: #fee;
+            color: #c62828;
+            border: 1px solid #fdd;
+        }
+
+        .message.success {
+            background: #efffef;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            .title {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Alpha 月度利润计算器</h1>
+            <p class="subtitle">基于积分与余额自动计算月利润</p>
+            <p class="loading" id="loadingText">正在初始化计算模块...</p>
+        </div>
+
+        <div class="input-section">
+                         <div class="input-group">
+                 <label class="input-label" for="ntl">Ntl（日交易量档位，范围：0-50）</label>
+                 <input type="number" id="ntl" class="input-field" step="0.1" min="0" max="50" oninput="updateAutoFields()">
+             </div>
+ 
+             <div class="input-group">
+                 <label class="input-label" for="pb">Pb（余额积分，范围：0-15）</label>
+                 <input type="number" id="pb" class="input-field" step="0.1" min="0" max="15" oninput="updateAutoFields()">
+             </div>
+ 
+             <div class="input-group">
+                 <label class="input-label" for="talpha">门槛（Tα，默认200分，范围：0-10000）</label>
+                 <input type="number" id="talpha" class="input-field" value="200" step="1" min="0" max="10000">
+             </div>
+ 
+             <div class="input-group">
+                 <label class="input-label" for="ipdw">Ipdw（每次领取预期收益，范围：0-100000）</label>
+                 <input type="number" id="ipdw" class="input-field" value="100" step="1" min="0" max="100000">
+             </div>
+ 
+             <div class="input-group">
+                 <label class="input-label" for="rdur">Rdur（交易损耗率，范围：0-1）</label>
+                 <input type="number" id="rdur" class="input-field" value="0.0002" step="0.0001" min="0" max="1">
+             </div>
+        </div>
+
+        <div class="auto-fields">
+            <div class="auto-field" id="vactual">Vactual（真实交易量）：-</div>
+            <div class="auto-field" id="nbal">Nbal（余额档位）：-</div>
+            <div class="auto-field" id="balance">余额（USD）：-</div>
+        </div>
+
+        <div class="result-section">
+            <div class="result-value" id="resultValue">月利润：-</div>
+        </div>
+
+        <button class="calculate-btn" onclick="calculateProfit()" id="calculateBtn" disabled>
+            计算
+        </button>
+
+        <div id="messageArea"></div>
+
+        <div class="footer">
+            <a href="https://x.com/tan_maty" class="footer-link" target="_blank">X: @tan_maty</a>
+            <a href="https://github.com/matyle" class="footer-link" target="_blank">GitHub: matyle</a>
+        </div>
+    </div>
+
+    <script>
+        let pyodide;
+        let calculator;
+
+        async function initializePyodide() {
+            try {
+                // 加载Pyodide
+                pyodide = await loadPyodide();
+                
+                // 直接执行计算模块代码
+                const calculatorCode = await fetch('./alpha_calculator.py').then(r => r.text());
+                pyodide.runPython(calculatorCode);
+                
+                // 获取计算函数
+                calculator = {
+                    calculate_profit: pyodide.globals.get('calculate_profit'),
+                    calculate_auto_fields: pyodide.globals.get('calculate_auto_fields'),
+                    validate_inputs: pyodide.globals.get('validate_inputs')
+                };
+                
+                // 更新UI状态
+                document.getElementById('loadingText').style.display = 'none';
+                document.getElementById('calculateBtn').disabled = false;
+                
+                showMessage('计算模块已加载完成！', 'success');
+                
+            } catch (error) {
+                console.error('初始化失败:', error);
+                showMessage('初始化失败：' + error.message, 'error');
+            }
+        }
+
+                 function updateAutoFields() {
+             if (!calculator) return;
+             
+             const ntl = document.getElementById('ntl').value;
+             const pb = document.getElementById('pb').value;
+             
+             if (!ntl || !pb) {
+                 document.getElementById('vactual').textContent = 'Vactual（真实交易量）：-';
+                 document.getElementById('nbal').textContent = 'Nbal（余额档位）：-';
+                 document.getElementById('balance').textContent = '余额（USD）：-';
+                 return;
+             }
+
+             try {
+                 const result = calculator.calculate_auto_fields(parseFloat(ntl), parseFloat(pb));
+                 const [vactual, nbal, balance] = result.toJs();
+                 
+                 document.getElementById('vactual').textContent = `Vactual（真实交易量）：${vactual.toFixed(2)}`;
+                 document.getElementById('nbal').textContent = `Nbal（余额档位）：${nbal.toFixed(0)}`;
+                 document.getElementById('balance').textContent = `余额（USD）：${balance.toFixed(0)}`;
+             } catch (error) {
+                 console.error('更新自动字段失败:', error);
+                 
+                 // 显示错误信息
+                 let errorMessage = '计算错误';
+                 if (error.message && error.message.includes('ValueError')) {
+                     const match = error.message.match(/ValueError: (.+)/);
+                     if (match) {
+                         errorMessage = match[1];
+                     }
+                 }
+                 
+                 document.getElementById('vactual').textContent = 'Vactual（真实交易量）：错误';
+                 document.getElementById('nbal').textContent = 'Nbal（余额档位）：错误';
+                 document.getElementById('balance').textContent = '余额（USD）：错误';
+                 
+                 showMessage(errorMessage, 'error');
+             }
+         }
+
+                 function calculateProfit() {
+             if (!calculator) {
+                 showMessage('计算模块未加载完成', 'error');
+                 return;
+             }
+
+             const ntl = document.getElementById('ntl').value;
+             const pb = document.getElementById('pb').value;
+             const talpha = document.getElementById('talpha').value || 200;
+             const ipdw = document.getElementById('ipdw').value || 100;
+             const rdur = document.getElementById('rdur').value || 0.0002;
+
+             if (!ntl || !pb) {
+                 showMessage('请输入必要的参数：Ntl 和 Pb', 'error');
+                 return;
+             }
+
+             try {
+                 const result = calculator.calculate_profit(
+                     parseFloat(ntl), 
+                     parseFloat(pb), 
+                     parseFloat(talpha), 
+                     parseFloat(ipdw), 
+                     parseFloat(rdur)
+                 );
+                 
+                 const [profit, vactual, nbal, balance] = result.toJs();
+                 
+                 document.getElementById('resultValue').textContent = `月利润：${profit.toFixed(2)} USD`;
+                 document.getElementById('vactual').textContent = `Vactual（真实交易量）：${vactual.toFixed(2)}`;
+                 document.getElementById('nbal').textContent = `Nbal（余额档位）：${nbal.toFixed(0)}`;
+                 document.getElementById('balance').textContent = `余额（USD）：${balance.toFixed(0)}`;
+                 
+                 showMessage('计算完成！', 'success');
+                 
+             } catch (error) {
+                 console.error('计算失败:', error);
+                 
+                 // 解析错误信息
+                 let errorMessage = '计算失败';
+                 if (error.message && error.message.includes('ValueError')) {
+                     const match = error.message.match(/ValueError: (.+)/);
+                     if (match) {
+                         errorMessage = match[1];
+                     }
+                 } else if (error.message) {
+                     errorMessage = error.message;
+                 }
+                 
+                 showMessage(errorMessage, 'error');
+             }
+         }
+
+        function showMessage(message, type) {
+            const messageArea = document.getElementById('messageArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            
+            messageArea.innerHTML = '';
+            messageArea.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('load', initializePyodide);
+    </script>
+</body>
+</html>
